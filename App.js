@@ -1,30 +1,39 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  Button,
-  FlatList,
-  Modal,
-  TouchableOpacity,
+  Pressable,
   SafeAreaView,
-} from "react-native";
-import axios from "axios";
-import { Details } from "./src/components/details/Details";
+} from 'react-native';
+import axios from 'axios';
+import { Details } from 'components/Details';
+import { RenderUsers } from 'components/RenderUsers';
+import { COLORS } from 'utils/Colors';
 
 export default function App() {
   const [userData, setUserData] = useState([]);
   const [pageParams, setPageParams] = useState(1);
-  const [changePage, setChangePage] = useState({
+  const defaultPage = {
     next: null,
     previous: null,
-  });
+  };
+  const [changePage, setChangePage] = useState(defaultPage);
+
+  const defaultGender = {
+    Male: 0,
+    Female: 0,
+    Other: 0,
+  };
+  const [genderCount, setGenderCount] = useState(defaultGender);
   const [selectedUser, setSelectedUser] = useState(null);
+  const defaultLike = {};
+  const [isLikeActive, setIsLikeActive] = useState(defaultLike);
 
   const fetchData = async (url) => {
     const response = await axios.get(url);
 
-    setPageParams(url.split('?')[1].split('=')[1])
+    setPageParams(url.split('?')[1].split('=')[1]);
     setUserData(response.data);
     setChangePage({
       next: response.data.next,
@@ -36,78 +45,69 @@ export default function App() {
     fetchData(`https://swapi.py4e.com/api/people/?page=1`);
   }, []);
 
-  const fetchAdditionalData = async (urls) => {
-    let promises = [];
-
-    if (typeof urls === "string") {
-      promises.push(axios.get(urls));
-    } else {
-      promises = urls.map((url) => axios.get(url));
-    }
-
-    const promiseAll = await Promise.all(promises);
-    const results = promiseAll.map((promise) => promise.data);
-
-    return results;
+  const handleClickReset = () => {
+    setGenderCount(defaultGender);
+    setIsLikeActive(defaultLike);
   };
-
-  const handleItemClick = async (item) => {
-    const filmData = await fetchAdditionalData(item.films);
-    const homeworld = await fetchAdditionalData(item.homeworld);
-    const species = await fetchAdditionalData(item.species);
-    const starships = await fetchAdditionalData(item.starships);
-    const vehicles = await fetchAdditionalData(item.vehicles);
-
-    setSelectedUser({
-      ...item,
-      films: filmData,
-      homeworld: homeworld,
-      species: species,
-      starships: starships,
-      vehicles: vehicles,
-    });
-  };
-
-  const renderUsers = ({ item }) => (
-    <TouchableOpacity
-      style={styles.usersList}
-      onPress={() => handleItemClick(item)}
-    >
-      <Text style={styles.userName}>{item.name}</Text>
-
-      <Button
-        title="Like"
-        onPress={() => console.log("Liked", item.name)}
-      ></Button>
-    </TouchableOpacity>
-  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.genderCount}>
+        {Object.entries(genderCount).map(([key, value]) => (
+          <View key={key} style={styles.genderTablets}>
+            <Text>{`${key}: ${value}`}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.resetButton}>
+        <Pressable
+          style={styles.resetButtonMain}
+          onPress={handleClickReset}
+        >
+          <Text style={styles.innerText}>Reset</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.container}>
-        <FlatList
-          data={userData.results}
-          renderItem={renderUsers}
-          keyExtractor={(item) => item.name}
-          style={styles.flatList}
+        <RenderUsers
+          isLikeActive={isLikeActive}
+          setIsLikeActive={setIsLikeActive}
+          userData={userData}
+          setGenderCount={setGenderCount}
+          setSelectedUser={setSelectedUser}
         />
 
         <View style={styles.pagination}>
-          <Button
-            title="<"
+          <Pressable
+            style={[
+              styles.paginationButton,
+              changePage.previous
+                ? styles.paginationButtonActive
+                : styles.paginationButtonDisabled,
+            ]}
             onPress={() => fetchData(changePage.previous)}
             disabled={!changePage.previous}
-          />
+          >
+            <Text style={styles.innerText}>{'<'}</Text>
+          </Pressable>
 
           <Text style={styles.pageText}>{`${pageParams * 10 - 9}-${
             pageParams * 10
           } of ${userData.count}`}</Text>
 
-          <Button
-            title=">"
+          <Pressable
+            style={[
+              styles.paginationButton,
+              changePage.next
+                ? styles.paginationButtonActive
+                : styles.paginationButtonDisabled,
+            ]}
             onPress={() => fetchData(changePage.next)}
             disabled={!changePage.next}
-          />
+          >
+            <Text style={styles.innerText}>{'>'}</Text>
+          </Pressable>
         </View>
 
         {selectedUser && (
@@ -122,39 +122,60 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
   container: {
+    backgroundColor: COLORS.background,
+    flex: 3,
+    padding: 10,
+  },
+  genderCount: {
     flex: 1,
-    padding: 10,
-    backgroundColor: "#fff",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  pagination: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 10,
-    alignItems: "center",
-  },
-  pageText: {
-    marginHorizontal: 10,
-    fontSize: 16,
-  },
-  usersList: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderColor: "#ddd",
-    borderRadius: 10,
+  genderTablets: {
+    alignItems: 'center',
+    borderColor: COLORS.disabled,
     borderWidth: 2,
-    padding: 10,
+    flex: 1,
+    justifyContent: 'center',
     margin: 10,
   },
-  userName: {
-    fontSize: 18,
+  innerText: {
+    color: COLORS.text,
   },
-  flatList: {
-    borderColor: "#ddd",
-    borderWidth: 1,
+  pageText: {
+    fontSize: 16,
+    marginHorizontal: 10,
+  },
+  pagination: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+  },
+  paginationButton: {
+    borderRadius: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  paginationButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  paginationButtonDisabled: {
+    backgroundColor: COLORS.disabled,
+  },
+  resetButton: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 10,
+  },
+  resetButtonMain: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 5,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  safeArea: {
+    flex: 1,
   },
 });
